@@ -1,0 +1,12 @@
+#!/bin/bash
+_input=$(echo "${1}" | jq '.image' | sed s,\",,g)
+
+# sanitize input
+_sanitized=${_input//[^a-zA-Z0-9_:@/-]*/}
+(>&2 echo "lookup image: ${_sanitized}")
+
+if _output=$(/bin/manifest-tool inspect --raw "${_sanitized}"); then
+	echo "{\"payload\": ${_output}}"
+else
+	echo "{\"error\": \"Image not found or not a public image reference\"}"
+fi

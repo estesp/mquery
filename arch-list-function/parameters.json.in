@@ -1,0 +1,5 @@
+{
+	"cloudantUser": "USERNAME",
+	"cloudantPassword": "PASSWORD",
+	"cloudantHost": "HOST"
+}
