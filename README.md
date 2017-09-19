@@ -15,6 +15,8 @@ the scripts in the two action directories. It will require having a bound Clouda
 database instance in your IBM Cloud account and your Cloudant credentials must be provided
 to the function via the parameters.json file.
 
+#### Using the API endpoint
+
 If you are interested in using the already published functions in my account, you can use
 the "Web Action" URL with a query parameter to easily query any publicly accessible image
 on any registry that supports the Docker v2 API without authentication (for public images).
@@ -39,6 +41,26 @@ $ curl 'https://openwhisk.ng.bluemix.net/api/v1/web/estesp%40us.ibm.com_dev/defa
 
 Piping this output to `jq '.payload.archList'` would print just the list of architectures
 supported by the image.
+
+#### Using the `mquery` tool
+
+This project also includes a simple Golang tool for querying the endpoint with a simple/readable output format for showing the list of architectures supported by a specific image. You can build the tool on any Golang supported platform using the Makefile, or you can use a pre-packaged image on Dockerhub on 64-bit Intel (until the tool itself can be tested/published as a manifest list). This tool requires the `https://github.com/dghubble/sling` package which you can add to your Go environment with:
+```
+$ go get -u github.com/dghubble/sling
+```
+
+To use the pre-packaged utility, it is published on DockerHub as `mplatform/mquery` and is shown below in the following example:
+```
+$ docker run mplatform/mquery ubuntu:latest
+Manifest List: Yes
+Supported platforms:
+ - amd64/linux
+ - arm/linux (variant: v7)
+ - arm64/linux (variant: v8)
+ - 386/linux
+ - ppc64le/linux
+ - s390x/linux
+```
 
 ## References
 More information about manifest lists and multi-platform image support is available in these blog posts:
