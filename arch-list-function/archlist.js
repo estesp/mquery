@@ -28,6 +28,7 @@ function main(params) {
 
         var db = cloudant.db.use('registryimages');
         var ow = Openwhisk();
+        var errorStr = "";
 
         console.log("image lookup: " + image);
         getImageData(db, image).then(function(data) {
@@ -50,9 +51,17 @@ function main(params) {
                         "image": image,
                     }
                 }).catch(function(err) {
-                    // couldn't find image..
-                    reject({ error: err });
+                    // our function invocation returned an error:
+                    console.log("Error from mplatformQuery action: " + err);
+                    errorStr = err.error.response.result.error;
                 }).then(function(res) {
+                    // check for error on action invoke:
+                    if (errorStr !== "") {
+                        reject({
+                            error: errorStr,
+                        });
+                        return;
+                    }
                     if (res.response.result.payload) {
                         var newData = res.response.result.payload;
                         if (!isEmpty(imageData)) {
@@ -61,8 +70,6 @@ function main(params) {
                         newData._id = image;
                         newData.cachetime = Date.now();
                         return processImageData(db, newData);
-                    } else {
-                        reject({ error: res.response.result.error });
                     }
                 });
             } else {
