@@ -47,6 +47,6 @@ script:
       chmod +x manifest-tool
 
       # Push manifest-list
-      ./manifest-tool push from-args --platforms linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/s390x,windows/amd64 --template "mplatform/mquery:OS-ARCH" --target "mplatform/mquery:$TRAVIS_TAG"
-      ./manifest-tool push from-args --platforms linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/s390x,windows/amd64 --template "mplatform/mquery:OS-ARCH" --target "mplatform/mquery:latest"
+      ./manifest-tool push from-args --platforms linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/s390x,windows/amd64 --template "mplatform/mquery:${TRAVIS_TAG}-OS-ARCH" --target "mplatform/mquery:$TRAVIS_TAG"
+      ./manifest-tool push from-args --platforms linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/s390x,windows/amd64 --template "mplatform/mquery:${TRAVIS_TAG}-OS-ARCH" --target "mplatform/mquery:latest"
     fi
