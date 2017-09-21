@@ -49,7 +49,8 @@ This project also includes a simple Golang tool for querying the endpoint with a
 $ go get -u github.com/dghubble/sling
 ```
 
-To use the pre-packaged utility, it is published on DockerHub as `mplatform/mquery` and is shown below in the following example:
+To use the pre-packaged utility, it is published on DockerHub as `mplatform/mquery` and is shown below in the following example. As a bonus, the `mplatform/mquery` image itself is multi-platform and should work on all supported Docker platforms/CPU architectures.
+
 ```
 $ docker run mplatform/mquery ubuntu:latest
 Manifest List: Yes
