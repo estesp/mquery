@@ -44,11 +44,12 @@ func main() {
 	resp, err := sling.New().Base(baseURL).QueryStruct(qparam).ReceiveSuccess(response)
 	if err != nil {
 		fmt.Printf("ERROR: failed to query backend: %v\n", err)
+		os.Exit(1)
 	}
-	os.Exit(processResponse(resp, response))
+	os.Exit(processResponse(resp, os.Args[1], response))
 }
 
-func processResponse(resp *http.Response, response *ImageDataResponse) int {
+func processResponse(resp *http.Response, imageName string, response *ImageDataResponse) int {
 	if resp.StatusCode != 200 {
 		// non-success RC from our http request
 		fmt.Printf("ERROR: Failure code from our HTTP request: %d\n", resp.StatusCode)
@@ -59,19 +60,20 @@ func processResponse(resp *http.Response, response *ImageDataResponse) int {
 		fmt.Printf("ERROR: %s\n", response.Error)
 		return 1
 	}
-	printManifestInfo(response)
+	printManifestInfo(imageName, response)
 	return 0
 }
 
-func printManifestInfo(response *ImageDataResponse) {
-	fmt.Printf("Manifest List: %s\n", response.ImageData.ManifestList)
+func printManifestInfo(imageName string, response *ImageDataResponse) {
+	fmt.Printf("Image: %s\n", imageName)
+	fmt.Printf(" * Manifest List: %s\n", response.ImageData.ManifestList)
 	if strings.Compare(response.ImageData.ManifestList, "Yes") == 0 {
-		fmt.Println("Supported platforms:")
+		fmt.Println(" * Supported platforms:")
 		for _, archosPair := range response.ImageData.ArchList {
-			fmt.Printf(" - %s\n", archosPair)
+			fmt.Printf("   - %s\n", archosPair)
 		}
 	} else {
-		fmt.Printf(" Supports: %s\n", response.ImageData.Platform)
+		fmt.Printf(" * Supports: %s\n", response.ImageData.Platform)
 	}
 	fmt.Println("")
 }
