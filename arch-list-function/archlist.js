@@ -107,9 +107,20 @@ function processImageData(db, manifestData) {
             var variant = "";
             if (arch == "arm" || arch == "arm64") {
                 variant = manifestData[i].Platform.variant;
-                archList.push("" + arch + "/" + os + " (variant: " + variant + ")");
+                if (variant !== "") {
+                    archList.push("" + os + "/" + arch + "/" + variant);
+                } else {
+                    archList.push("" + os + "/" + arch);
+                }
+            } else if (os == "windows") {
+                osv = manifestData[i].OSVersion;
+                if (osv !== "") {
+                    archList.push("" + os + "/" + arch + ":" + osv);
+                } else {
+                    archList.push("" + os + "/" + arch);
+                }
             } else {
-                archList.push("" + arch + "/" + os);
+                archList.push("" + os + "/" + arch);
             }
         } else {
             filteredData.manifestList = "No";
