@@ -105,9 +105,9 @@ function processImageData(db, manifestData) {
             var arch = manifestData[i].Platform.architecture;
             var os = manifestData[i].Platform.os;
             var variant = "";
-            if (arch == "arm" || arch == "arm64") {
+            if (arch == "arm") {
                 variant = manifestData[i].Platform.variant;
-                if (variant !== "") {
+                if (!(variant === undefined) && variant !== "") {
                     archList.push("" + os + "/" + arch + "/" + variant);
                 } else {
                     archList.push("" + os + "/" + arch);
