@@ -1,7 +1,9 @@
 FROM alpine:latest as certs
 RUN apk --update add ca-certificates
 FROM scratch
-ARG TARGETPLATFORM=linux-amd64
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY mquery-${TARGETPLATFORM} /mquery
+COPY mquery-${TARGETOS}-${TARGETARCH}${TARGETVARIANT} /mquery
 ENTRYPOINT [ "/mquery" ]

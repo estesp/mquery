@@ -27,6 +27,7 @@ type Image struct {
 	IsList    bool               `json:"islist"`
 	ImageName string             `json:"imagename"`
 	Digest    string             `json:"digest"`
+	MediaType string             `json:"mediatype"`
 	ArchList  []ocispec.Platform `json:"archlist"`
 }
 
@@ -59,12 +60,12 @@ func processResponse(resp *http.Response, imageName string, errResp *ErrorRespon
 }
 
 func printManifestInfo(imageName string, image *Image) {
-	fmt.Printf("Image: %s\n", imageName)
+	fmt.Printf("Image: %s (digest: %s)\n", imageName, image.Digest)
 	list := "Yes"
 	if !image.IsList {
 		list = "No"
 	}
-	fmt.Printf(" * Manifest List: %s\n", list)
+	fmt.Printf(" * Manifest List: %s (Image type: %s)\n", list, image.MediaType)
 	if image.IsList {
 		fmt.Println(" * Supported platforms:")
 		for _, platform := range image.ArchList {
