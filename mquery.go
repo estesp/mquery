@@ -4,32 +4,30 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/dghubble/sling"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-const baseURL = "https://openwhisk.ng.bluemix.net/api/v1/web/estesp%40us.ibm.com_dev/default/archList.json"
+const baseURL = "https://2xopp470jc.execute-api.us-east-2.amazonaws.com/mquery"
 
 // QueryParams defines the parameters sent; in our case only "image" is needed
 type QueryParams struct {
 	Image string `url:"image"`
 }
 
-// ImageDataResponse holds the payload response on success
-type ImageDataResponse struct {
-	ImageData Payload `json:"payload,omitempty"`
-	Error     string  `json:"error,omitempty"`
+// ErrorResponse holds the payload response on failure HTTP codes
+type ErrorResponse struct {
+	Error string `json:"error,omitempty"`
 }
 
-// Payload contains the JSON struct we get from the web action
-type Payload struct {
-	ManifestList string   `json:"manifestList,omitempty"`
-	Tag          string   `json:"tag,omitempty"`
-	ID           string   `json:"_id,omitempty"`
-	RepoTags     []string `json:"repoTags,omitempty"`
-	ArchList     []string `json:"archList,omitempty"`
-	Platform     string   `json:"platform,omitempty"`
+// Image contains the JSON struct we get from success
+type Image struct {
+	CacheTS   int64              `json:"cachets"`
+	IsList    bool               `json:"islist"`
+	ImageName string             `json:"imagename"`
+	Digest    string             `json:"digest"`
+	ArchList  []ocispec.Platform `json:"archlist"`
 }
 
 func main() {
@@ -40,40 +38,54 @@ func main() {
 	qparam := &QueryParams{
 		Image: os.Args[1],
 	}
-	response := new(ImageDataResponse)
-	resp, err := sling.New().Base(baseURL).QueryStruct(qparam).ReceiveSuccess(response)
+	image := new(Image)
+	errResp := new(ErrorResponse)
+	resp, err := sling.New().Base(baseURL).QueryStruct(qparam).Receive(image, errResp)
 	if err != nil {
 		fmt.Printf("ERROR: failed to query backend: %v\n", err)
 		os.Exit(1)
 	}
-	os.Exit(processResponse(resp, os.Args[1], response))
+	os.Exit(processResponse(resp, os.Args[1], errResp, image))
 }
 
-func processResponse(resp *http.Response, imageName string, response *ImageDataResponse) int {
+func processResponse(resp *http.Response, imageName string, errResp *ErrorResponse, image *Image) int {
 	if resp.StatusCode != 200 {
 		// non-success RC from our http request
-		fmt.Printf("ERROR: Failure code from our HTTP request: %d\n", resp.StatusCode)
+		fmt.Printf("ERROR: %s\n", errResp.Error)
 		return 1
 	}
-	if response.Error != "" {
-		// print out error
-		fmt.Printf("ERROR: %s\n", response.Error)
-		return 1
-	}
-	printManifestInfo(imageName, response)
+	printManifestInfo(imageName, image)
 	return 0
 }
 
-func printManifestInfo(imageName string, response *ImageDataResponse) {
+func printManifestInfo(imageName string, image *Image) {
 	fmt.Printf("Image: %s\n", imageName)
-	fmt.Printf(" * Manifest List: %s\n", response.ImageData.ManifestList)
-	if strings.Compare(response.ImageData.ManifestList, "Yes") == 0 {
+	list := "Yes"
+	if !image.IsList {
+		list = "No"
+	}
+	fmt.Printf(" * Manifest List: %s\n", list)
+	if image.IsList {
 		fmt.Println(" * Supported platforms:")
-		for _, archosPair := range response.ImageData.ArchList {
-			fmt.Printf("   - %s\n", archosPair)
+		for _, platform := range image.ArchList {
+			platformOutput := parsePlatform(platform)
+			fmt.Printf("   - %s\n", platformOutput)
 		}
 	} else {
-		fmt.Printf(" * Supports: %s\n", response.ImageData.Platform)
+		fmt.Printf(" * Supports: %s\n", parsePlatform(image.ArchList[0]))
 	}
 	fmt.Println("")
+}
+
+func parsePlatform(platform ocispec.Platform) string {
+	platformStr := fmt.Sprintf("%s/%s", platform.OS, platform.Architecture)
+	if len(platform.Variant) > 0 {
+		platformStr = platformStr + "/" + platform.Variant
+	}
+	if platform.OS == "windows" {
+		if len(platform.OSVersion) > 0 {
+			platformStr = platformStr + ":" + platform.OSVersion
+		}
+	}
+	return platformStr
 }
