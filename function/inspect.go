@@ -34,15 +34,18 @@ var (
 	dynaClient dynamodbiface.DynamoDBAPI
 )
 
+// ErrorBody is used to encapsulate error responses to the client
 type ErrorBody struct {
 	ErrorMsg *string `json:"error,omitempty"`
 }
 
+// Image represents the cached JSON metadata about the image
 type Image struct {
 	CacheTS   int64              `json:"cachets"`
 	IsList    bool               `json:"islist"`
 	ImageName string             `json:"imagename"`
 	Digest    string             `json:"digest"`
+	MediaType string             `json:"mediatype"`
 	ArchList  []ocispec.Platform `json:"archlist"`
 }
 
@@ -201,6 +204,7 @@ func queryRegistry(name string) (*Image, error) {
 func generateImage(name string, cs *store.MemoryStore, desc ocispec.Descriptor, index ocispec.Index, imgConfig ocispec.Image) *Image {
 	image := new(Image)
 	image.Digest = desc.Digest.String()
+	image.MediaType = desc.MediaType
 	image.ImageName = name
 	image.CacheTS = time.Now().Unix()
 	switch desc.MediaType {
