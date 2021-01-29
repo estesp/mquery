@@ -1,0 +1,153 @@
+name: CI
+on:
+  push:
+    branches:
+      - master
+      - 'release/**'
+  pull_request:
+    branches:
+      - master
+      - 'release/**'
+
+jobs:
+  #
+  # golangci-lint
+  #
+  linters:
+    name: Linters
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        go-version: [1.15.7]
+        os: [ubuntu-18.04, macos-10.15, windows-2019]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: src/github.com/estesp/mquery
+
+      - name: Set env
+        shell: bash
+        run: |
+          echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.29
+          working-directory: src/github.com/estesp/mquery
+          args: --timeout=1m
+
+  #
+  # Project checks
+  #
+  project:
+    name: DCO/Vendor Checks
+    runs-on: ubuntu-18.04
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: src/github.com/estesp/mquery
+          fetch-depth: 100
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15.7
+
+      - name: Set env
+        shell: bash
+        run: |
+          echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        env:
+          GO111MODULE: off
+        run: go get -u github.com/vbatts/git-validation
+
+      - name: DCO
+        env:
+          GITHUB_COMMIT_URL: ${{ github.event.pull_request.commits_url }}
+          DCO_VERBOSITY: "-q"
+          DCO_RANGE: ""
+        working-directory: src/github.com/estesp/mquery
+        run: |
+          if [ -z "${GITHUB_COMMIT_URL}" ]; then
+            DCO_RANGE=$(jq -r '.before +".."+ .after' ${GITHUB_EVENT_PATH})
+          else
+            DCO_RANGE=$(curl ${GITHUB_COMMIT_URL} | jq -r '.[0].parents[0].sha +".."+ .[-1].sha')
+          fi
+          GIT_CHECK_EXCLUDE="./vendor" git-validation -range "${DCO_RANGE}" -run DCO,short-subject,dangling-whitespace
+
+      - name: Vendor Checks
+        working-directory: src/github.com/estesp/mquery
+        run: |
+          ./hack/vendor.sh
+          cd function && ../hack/vendor.sh
+
+  #
+  # Build binaries
+  #
+  binaries:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    needs: [project, linters]
+
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, macos-10.15, windows-2019]
+
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.15.7'
+
+      - name: Set env
+        shell: bash
+        run: |
+          echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - uses: actions/checkout@v2
+        with:
+          path: src/github.com/estesp/mquery
+
+      - name: Make
+        run: make binary
+        working-directory: src/github.com/estesp/mquery
+
+  #
+  # Cross-built architectures
+  #
+  cross:
+    name: Cross-builds & Lambda function
+    runs-on: ubuntu-18.04
+    timeout-minutes: 10
+    needs: [project, linters]
+
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.15.7'
+
+      - name: Set env
+        shell: bash
+        run: |
+          echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - uses: actions/checkout@v2
+        with:
+          path: src/github.com/estesp/mquery
+
+      - name: Make cross-built binaries
+        run: |
+          make cross
+          cd function && GOOS=linux go build -o function inspect.go
+        working-directory: src/github.com/estesp/mquery

@@ -138,7 +138,9 @@ func deleteCache(imageName string) {
 		TableName: aws.String(tableName),
 	}
 
-	dynaClient.DeleteItem(input)
+	if _, err := dynaClient.DeleteItem(input); err != nil {
+		log.Printf("error deleting cache item for %s: %v", imageName, err)
+	}
 }
 
 func cacheImage(image *Image) error {
