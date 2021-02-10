@@ -1,0 +1,256 @@
+on:
+  push:
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+name: mquery Release
+
+jobs:
+  check:
+    name: Check Signed Tag
+    runs-on: ubuntu-18.04
+    timeout-minutes: 5
+    outputs:
+      stringver: ${{ steps.contentrel.outputs.stringver }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+          path: src/github.com/estesp/mquery
+
+      - name: Check signature
+        run: |
+          releasever=${{ github.ref }}
+          releasever="${releasever#refs/tags/}"
+          TAGCHECK=$(git tag -v ${releasever} 2>&1 >/dev/null) ||
+          echo "${TAGCHECK}" | grep -q "error" && {
+              echo "::error::tag ${releasever} is not a signed tag. Failing release process."
+              exit 1
+          } || {
+              echo "Tag ${releasever} is signed."
+              exit 0
+          }
+        working-directory: src/github.com/estesp/mquery
+
+      - name: Release content
+        id: contentrel
+        run: |
+          RELEASEVER=${{ github.ref }}
+          echo "::set-output name=stringver::${RELEASEVER#refs/tags/v}"
+          git tag -l ${RELEASEVER#refs/tags/} -n20000 | tail -n +3 | cut -c 5- >release-notes.md
+        working-directory: src/github.com/estesp/mquery
+
+      - name: Save release notes
+        uses: actions/upload-artifact@v2
+        with:
+          name: mquery-release-notes
+          path: src/github.com/estesp/mquery/release-notes.md
+
+  build:
+    name: Build binaries
+    runs-on: ubuntu-18.04
+    needs: [check]
+    timeout-minutes: 10
+
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16.x'
+
+      - name: Set env
+        shell: bash
+        run: |
+          releasever=${{ github.ref }}
+          releasever="${releasever#refs/tags/}"
+          echo "RELEASE_VER=${releasever}" >> $GITHUB_ENV
+          echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Checkout mquery
+        uses: actions/checkout@v2
+        with:
+          repository: estesp/mquery
+          ref: ${{ github.ref }}
+          path: src/github.com/estesp/mquery
+
+      - name: Make
+        shell: bash
+        run: |
+          make cross
+          TARFILE="binaries-mquery-${RELEASE_VER#v}.tar.gz"
+          tar czf ${TARFILE} mquery-*
+          sha256sum ${TARFILE} >${TARFILE}.sha256sum
+        working-directory: src/github.com/estesp/mquery
+
+      - name: Save build binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: mquery-binaries
+          path: src/github.com/estesp/mquery/*.tar.gz*
+
+  containers-lx:
+    name: Build and push Linux release images
+    runs-on: ubuntu-18.04
+    needs: [check]
+    timeout-minutes: 10
+
+    steps:
+      - name: Set env
+        shell: bash
+        run: |
+          releasever=${{ github.ref }}
+          releasever="${releasever#refs/tags/}"
+          echo "RELEASE_VER=${releasever}" >> $GITHUB_ENV
+          echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Checkout mquery
+        uses: actions/checkout@v2
+        with:
+          repository: estesp/mquery
+          ref: ${{ github.ref }}
+          path: src/github.com/estesp/mquery
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1 
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Linux containers
+        shell: bash
+        run: |
+          docker buildx build --platform linux/arm/v6 --push -t mplatform/mquery:linux_arm_v6_${RELEASE_VER} -f packaging/Dockerfile.linux .
+          docker buildx build --platform linux/arm/v7 --push -t mplatform/mquery:linux_arm_v7_${RELEASE_VER} -f packaging/Dockerfile.linux .
+          docker buildx build --platform linux/amd64 --push -t mplatform/mquery:linux_amd64_${RELEASE_VER} -f packaging/Dockerfile.linux .
+          docker buildx build --platform linux/arm64 --push -t mplatform/mquery:linux_arm64_${RELEASE_VER} -f packaging/Dockerfile.linux .
+          docker buildx build --platform linux/ppc64le --push -t mplatform/mquery:linux_ppc64le_${RELEASE_VER} -f packaging/Dockerfile.linux .
+          docker buildx build --platform linux/s390x --push -t mplatform/mquery:linux_s390x_${RELEASE_VER} -f packaging/Dockerfile.linux .
+          docker buildx build --platform linux/386 --push -t mplatform/mquery:linux_i386_${RELEASE_VER} -f packaging/Dockerfile.linux .
+        working-directory: src/github.com/estesp/mquery
+
+  containers-win:
+    name: Build and push Linux release images
+    runs-on: windows-2019
+    needs: [check]
+    timeout-minutes: 10
+
+    steps:
+      - name: Set env
+        shell: bash
+        run: |
+          releasever=${{ github.ref }}
+          releasever="${releasever#refs/tags/}"
+          echo "RELEASE_VER=${releasever}" >> $GITHUB_ENV
+          echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Checkout mquery
+        uses: actions/checkout@v2
+        with:
+          repository: estesp/mquery
+          ref: ${{ github.ref }}
+          path: src/github.com/estesp/mquery
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1 
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Windows containers
+        shell: bash
+        run: |
+          make TARGETOS=windows binary
+          docker buildx build --push -t mplatform/mquery:win2019_${RELEASE_VER} -f packaging/Dockerfile.windows .
+          docker buildx build --push -t mplatform/mquery:win2016_${RELEASE_VER} -f packaging/Dockerfile.windows2016 .
+        working-directory: src/github.com/estesp/mquery
+
+  container-assemble:
+    name: Assemble and push multi-platform release image
+    runs-on: ubuntu-18.04
+    needs: [containers-lx, containers-win]
+    timeout-minutes: 10
+
+    steps:
+      - name: Set env
+        shell: bash
+        run: |
+          releasever=${{ github.ref }}
+          releasever="${releasever#refs/tags/}"
+          echo "RELEASE_VER=${releasever}" >> $GITHUB_ENV
+          echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1 
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Checkout mquery
+        uses: actions/checkout@v2
+        with:
+          repository: estesp/mquery
+          ref: ${{ github.ref }}
+          path: src/github.com/estesp/mquery
+
+      - name: Build and push manifest-list
+        shell: bash
+        run: |
+          go install github.com/estesp/manifest-tool
+          cat packaging/pushml.yaml | sed 's,VERS,${RELEASE_VER},' >pushml.yml
+          manifest-tool push from-spec pushml.yml
+        working-directory: src/github.com/estesp/mquery
+
+  release:
+    name: Create mquery Release
+    runs-on: ubuntu-18.04
+    timeout-minutes: 10
+    needs: [build, check]
+
+    steps:
+      - name: Download builds and release notes
+        uses: actions/download-artifact@v2
+        with:
+          path: builds
+      - name: Catalog build assets for upload
+        id: catalog
+        run: |
+          _filenum=1
+          for f in `ls builds/mquery-binaries`; do
+              echo "::set-output name=file${_filenum}::${f}"
+              let "_filenum+=1"
+          done
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1.1.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: mquery ${{ needs.check.outputs.stringver }}
+          body_path: ./builds/mquery-release-notes/release-notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+      - name: Upload binaries tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./builds/mquery-binaries/${{ steps.catalog.outputs.file1 }}
+          asset_name: ${{ steps.catalog.outputs.file1 }}
+          asset_content_type: application/gzip
+      - name: Upload sha256 sum
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./builds/mquery-binaries/${{ steps.catalog.outputs.file2 }}
+          asset_name: ${{ steps.catalog.outputs.file2 }}
+          asset_content_type: text/plain

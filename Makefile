@@ -1,14 +1,22 @@
-.PHONY: binary clean install shell test-integration
+.PHONY: binary clean install cross-clean cross static
 
 PREFIX ?= ${DESTDIR}/usr
 INSTALLDIR=${PREFIX}/bin
+ARCHFLAGS=
+EXE=
+
+ifeq ($(TARGETARCH),arm)
+	ARCHFLAGS=GOARM=$(TARGETVARIANT)
+endif
+ifeq ($(TARGETOS),windows)
+	EXE=.exe
+endif
 
 binary:
-	go build mquery.go
+	go build -o mquery$(EXE) .
 
 static:
-	go build -ldflags "-linkmode external -extldflags -static" -a -installsuffix cgo -o mquery .
-
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(TARGETARCH) $(ARCHFLAGS) go build -ldflags "-extldflags -static" -a -tags netgo -installsuffix netgo -o mquery 
 clean:
 	rm -f mquery
 
