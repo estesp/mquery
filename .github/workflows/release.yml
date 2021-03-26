@@ -201,11 +201,19 @@ jobs:
           path: src/github.com/estesp/mquery
 
       - name: Build and push manifest-list
+        env:
+          PRERELEASE: ${{ contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
         shell: bash
         run: |
-          go install github.com/estesp/manifest-tool
+          TMPROOT=$(mktemp -d)
+          git clone https://github.com/estesp/manifest-tool.git "${TMPROOT}"/manifest-tool
+          pushd "${TMPROOT}"/manifest-tool
+          make binary
+          sudo make install PREFIX=/usr/local
+          popd
+          echo "Pre-release: ${PRERELEASE}"
           cat packaging/pushml.yaml | sed 's,VERS,${RELEASE_VER},' >pushml.yml
-          manifest-tool push from-spec pushml.yml
+          /usr/local/bin/manifest-tool push from-spec pushml.yml
         working-directory: src/github.com/estesp/mquery
 
   release:
