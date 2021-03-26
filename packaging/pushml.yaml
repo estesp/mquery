@@ -27,13 +27,13 @@ manifests:
       os: linux
       variant: v8
   - 
-    image: mplatform/mquery:linux_arm_7_VERS
+    image: mplatform/mquery:linux_arm_v7_VERS
     platform: 
       architecture: arm
       os: linux
       variant: v7
   - 
-    image: mplatform/mquery:linux_arm_6_VERS
+    image: mplatform/mquery:linux_arm_v6_VERS
     platform: 
       architecture: arm
       os: linux
