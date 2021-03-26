@@ -165,8 +165,10 @@ jobs:
         shell: bash
         run: |
           make TARGETOS=windows binary
-          docker buildx build --push -t mplatform/mquery:win2019_${RELEASE_VER} -f packaging/Dockerfile.windows .
-          docker buildx build --push -t mplatform/mquery:win2016_${RELEASE_VER} -f packaging/Dockerfile.windows2016 .
+          docker build -t mplatform/mquery:win2019_${RELEASE_VER} -f packaging/Dockerfile.windows .
+          docker build -t mplatform/mquery:win2016_${RELEASE_VER} -f packaging/Dockerfile.windows2016 .
+          docker push mplatform/mquery:win2019_${RELEASE_VER}
+          docker push mplatform/mquery:win2016_${RELEASE_VER}
         working-directory: src/github.com/estesp/mquery
 
   container-assemble:
