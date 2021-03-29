@@ -208,8 +208,7 @@ jobs:
           TMPROOT=$(mktemp -d)
           git clone https://github.com/estesp/manifest-tool.git "${TMPROOT}"/manifest-tool
           pushd "${TMPROOT}"/manifest-tool
-          git checkout v1.0.3
-          GO111MODULE=off make binary
+          make binary
           sudo make install PREFIX=/usr/local
           popd
           echo "Pre-release: ${PRERELEASE}"
