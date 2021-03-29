@@ -1,5 +1,4 @@
 image: mplatform/mquery:VERS
-tags: [ "latest" ]
 manifests: 
   - 
     image: mplatform/mquery:linux_ppc64le_VERS

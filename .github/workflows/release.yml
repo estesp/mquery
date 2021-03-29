@@ -212,7 +212,11 @@ jobs:
           sudo make install PREFIX=/usr/local
           popd
           echo "Pre-release: ${PRERELEASE}"
-          cat packaging/pushml.yaml | sed "s,VERS,${RELEASE_VER}," >pushml.yml
+          if [ "${PRERELEASE" == "true" ]; then
+            cat packaging/pushml-pre.yaml | sed "s,VERS,${RELEASE_VER}," >pushml.yml
+          else
+            cat packaging/pushml.yaml | sed "s,VERS,${RELEASE_VER}," >pushml.yml
+          fi
           /usr/local/bin/manifest-tool push from-spec pushml.yml
         working-directory: src/github.com/estesp/mquery
 
