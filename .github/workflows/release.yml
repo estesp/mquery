@@ -212,7 +212,7 @@ jobs:
           sudo make install PREFIX=/usr/local
           popd
           echo "Pre-release: ${PRERELEASE}"
-          if [ "${PRERELEASE" == "true" ]; then
+          if [ "${PRERELEASE}" == "true" ]; then
             cat packaging/pushml-pre.yaml | sed "s,VERS,${RELEASE_VER}," >pushml.yml
           else
             cat packaging/pushml.yaml | sed "s,VERS,${RELEASE_VER}," >pushml.yml
