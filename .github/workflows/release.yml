@@ -130,6 +130,7 @@ jobs:
           docker buildx build --platform linux/ppc64le --push -t mplatform/mquery:linux_ppc64le_${RELEASE_VER} -f packaging/Dockerfile.linux .
           docker buildx build --platform linux/s390x --push -t mplatform/mquery:linux_s390x_${RELEASE_VER} -f packaging/Dockerfile.linux .
           docker buildx build --platform linux/386 --push -t mplatform/mquery:linux_i386_${RELEASE_VER} -f packaging/Dockerfile.linux .
+          docker buildx build --platform linux/riscv64 --push -t mplatform/mquery:linux_riscv64_${RELEASE_VER} -f packaging/Dockerfile.linux .
         working-directory: src/github.com/estesp/mquery
 
   containers-win:

@@ -21,6 +21,11 @@ manifests:
       architecture: s390x
       os: linux
   -
+    image: mplatform/mquery:linux_riscv64_VERS
+    platform:
+      architecture: riscv64
+      os: linux
+  -
     image: mplatform/mquery:linux_arm64_VERS
     platform:
       architecture: arm64
