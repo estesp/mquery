@@ -17,10 +17,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 
-	"github.com/estesp/manifest-tool/pkg/registry"
-	"github.com/estesp/manifest-tool/pkg/store"
-	"github.com/estesp/manifest-tool/pkg/types"
-	"github.com/estesp/manifest-tool/pkg/util"
+	"github.com/estesp/manifest-tool/v2/pkg/registry"
+	"github.com/estesp/manifest-tool/v2/pkg/store"
+	"github.com/estesp/manifest-tool/v2/pkg/types"
+	"github.com/estesp/manifest-tool/v2/pkg/util"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
