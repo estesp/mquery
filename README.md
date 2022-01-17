@@ -16,13 +16,14 @@ you can look up the `ubuntu:latest` image as follows:
 
 ```
 $ docker run --rm mplatform/mquery ubuntu:latest
-Image: ubuntu:latest
- * Manifest List: Yes
+Image: ubuntu:latest (digest: sha256:b5a61709a9a44284d88fb12e5c48db0409cfad5b69d4ff8224077c57302df9cf)
+ * Manifest List: Yes (Image type: application/vnd.docker.distribution.manifest.list.v2+json)
  * Supported platforms:
    - linux/amd64
    - linux/arm/v7
    - linux/arm64/v8
    - linux/ppc64le
+   - linux/riscv64
    - linux/s390x
 ```
 
