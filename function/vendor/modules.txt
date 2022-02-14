@@ -54,7 +54,7 @@ github.com/aws/aws-sdk-go/service/sts/stsiface
 github.com/beorn7/perks/quantile
 # github.com/cespare/xxhash/v2 v2.1.1
 github.com/cespare/xxhash/v2
-# github.com/containerd/containerd v1.5.8
+# github.com/containerd/containerd v1.5.9
 github.com/containerd/containerd/archive/compression
 github.com/containerd/containerd/content
 github.com/containerd/containerd/content/local
@@ -80,7 +80,7 @@ github.com/docker/cli/cli/config
 github.com/docker/cli/cli/config/configfile
 github.com/docker/cli/cli/config/credentials
 github.com/docker/cli/cli/config/types
-# github.com/docker/distribution v2.7.1+incompatible
+# github.com/docker/distribution v2.8.0+incompatible
 github.com/docker/distribution
 github.com/docker/distribution/digestset
 github.com/docker/distribution/manifest
@@ -129,7 +129,7 @@ github.com/docker/go-connections/tlsconfig
 github.com/docker/go-metrics
 # github.com/docker/go-units v0.4.0
 github.com/docker/go-units
-# github.com/estesp/manifest-tool/v2 v2.0.0-rc.1
+# github.com/estesp/manifest-tool/v2 v2.0.0
 ## explicit
 github.com/estesp/manifest-tool/v2/pkg/registry
 github.com/estesp/manifest-tool/v2/pkg/store
