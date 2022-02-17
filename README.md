@@ -12,19 +12,23 @@ registry, and if so, what platforms are supported by the image.
 You can use the public endpoint with `curl` and JSON formatting tools to query images directly.
 See the next section for a tool which performs this for you and provides a simple text output.
 This tool is published as a multi-platform image on DockerHub as `mplatform/mquery`; for example
-you can look up the `ubuntu:latest` image as follows:
+you can look up the `mplatform/mquery:latest` image as follows:
 
 ```
-$ docker run --rm mplatform/mquery ubuntu:latest
-Image: ubuntu:latest (digest: sha256:b5a61709a9a44284d88fb12e5c48db0409cfad5b69d4ff8224077c57302df9cf)
+$ docker run --rm mplatform/mquery mplatform/mquery:latest
+Image: mplatform/mquery:latest (digest: sha256:d0989420b6f0d2b929fd9355f15c767f62d0e9a72cdf999d1eb16e6073782c71)
  * Manifest List: Yes (Image type: application/vnd.docker.distribution.manifest.list.v2+json)
  * Supported platforms:
-   - linux/amd64
-   - linux/arm/v7
-   - linux/arm64/v8
    - linux/ppc64le
-   - linux/riscv64
+   - linux/amd64
+   - linux/386
    - linux/s390x
+   - linux/riscv64
+   - linux/arm64/v8
+   - linux/arm/v7
+   - linux/arm/v6
+   - windows/amd64:10.0.17763.2300
+   - windows/amd64:10.0.14393.4770
 ```
 
 #### Using the `mquery` tool
