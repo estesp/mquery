@@ -20,8 +20,8 @@ jobs:
 
     strategy:
       matrix:
-        go-version: [1.17.x]
-        os: [ubuntu-18.04, macos-10.15, windows-2019]
+        go-version: [1.19.x]
+        os: [ubuntu-18.04, macos-12, windows-2019]
 
     steps:
       - uses: actions/checkout@v2
@@ -34,18 +34,19 @@ jobs:
           echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
           echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
 
-      - uses: golangci/golangci-lint-action@v2
+      - uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.29
+          version: v1.45.0
+          skip-cache: true
           working-directory: src/github.com/estesp/mquery
-          args: --timeout=1m
+          args: --timeout=5m
 
   #
   # Project checks
   #
   project:
     name: DCO/Vendor Checks
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     timeout-minutes: 5
 
     steps:
@@ -57,7 +58,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17.x
+          go-version: 1.19.x
 
       - name: Set env
         shell: bash
@@ -101,12 +102,12 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-18.04, macos-10.15, windows-2019]
+        os: [ubuntu-20.04, macos-12, windows-2019]
 
     steps:
       - uses: actions/setup-go@v2
         with:
-          go-version: 1.17.x
+          go-version: 1.19.x
 
       - name: Set env
         shell: bash
@@ -127,14 +128,14 @@ jobs:
   #
   cross:
     name: Cross-builds & Lambda function
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     timeout-minutes: 10
     needs: [project, linters]
 
     steps:
       - uses: actions/setup-go@v2
         with:
-          go-version: 1.17.x
+          go-version: 1.19.x
 
       - name: Set env
         shell: bash
