@@ -119,7 +119,7 @@ func (configFile *ConfigFile) LegacyLoadFromReader(configData io.Reader) error {
 // LoadFromReader reads the configuration data given and sets up the auth config
 // information with given directory and populates the receiver object
 func (configFile *ConfigFile) LoadFromReader(configData io.Reader) error {
-	if err := json.NewDecoder(configData).Decode(&configFile); err != nil && !errors.Is(err, io.EOF) {
+	if err := json.NewDecoder(configData).Decode(configFile); err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
 	var err error
@@ -168,6 +168,13 @@ func (configFile *ConfigFile) SaveToWriter(writer io.Writer) error {
 	saveAuthConfigs := configFile.AuthConfigs
 	configFile.AuthConfigs = tmpAuthConfigs
 	defer func() { configFile.AuthConfigs = saveAuthConfigs }()
+
+	// User-Agent header is automatically set, and should not be stored in the configuration
+	for v := range configFile.HTTPHeaders {
+		if strings.EqualFold(v, "User-Agent") {
+			delete(configFile.HTTPHeaders, v)
+		}
+	}
 
 	data, err := json.MarshalIndent(configFile, "", "\t")
 	if err != nil {
