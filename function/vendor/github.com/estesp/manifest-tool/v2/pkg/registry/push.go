@@ -14,7 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func PushManifestList(username, password string, input types.YAMLInput, ignoreMissing, insecure, plainHttp bool, configDir string) (hash string, length int, err error) {
+func PushManifestList(username, password string, input types.YAMLInput, ignoreMissing, insecure, plainHttp bool, manifestType types.ManifestType, configDir string) (hash string, length int, err error) {
 	// resolve the target image reference for the combined manifest list/index
 	targetRef, err := reference.ParseNormalizedNamed(input.Image)
 	if err != nil {
@@ -28,12 +28,11 @@ func PushManifestList(username, password string, input types.YAMLInput, ignoreMi
 	resolver := util.NewResolver(username, password, insecure,
 		plainHttp, configDirs...)
 
-	imageType := types.Docker
 	manifestList := types.ManifestList{
 		Name:      input.Image,
 		Reference: targetRef,
 		Resolver:  resolver,
-		Type:      imageType,
+		Type:      manifestType,
 	}
 	// create an in-memory store for OCI descriptors and content used during the push operation
 	memoryStore := store.NewMemoryStore()
