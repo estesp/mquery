@@ -18,59 +18,120 @@ func PushManifestList(username, password string, input types.YAMLInput, ignoreMi
 	// resolve the target image reference for the combined manifest list/index
 	targetRef, err := reference.ParseNormalizedNamed(input.Image)
 	if err != nil {
-		return hash, length, fmt.Errorf("Error parsing name for manifest list (%s): %v", input.Image, err)
+		return hash, length, fmt.Errorf("error parsing name for manifest list (%s): %v", input.Image, err)
 	}
 
-	resolver := util.NewResolver(username, password, insecure, plainHttp, configDir)
-
+	err = util.CreateRegistryHost(targetRef, username, password, insecure, plainHttp, configDir, true)
+	if err != nil {
+		return hash, length, fmt.Errorf("error creating registry host configuration: %v", err)
+	}
 	manifestList := types.ManifestList{
 		Name:      input.Image,
 		Reference: targetRef,
-		Resolver:  resolver,
+		Resolver:  util.GetResolver(),
 		Type:      manifestType,
 	}
 	// create an in-memory store for OCI descriptors and content used during the push operation
 	memoryStore := store.NewMemoryStore()
 
+	// collect descriptors for images and attestations as we walk the included images
+	var (
+		manifestDescriptors    []types.Manifest
+		attestationDescriptors []types.Manifest
+		platforms              map[string]ocispec.Descriptor
+	)
+
 	logrus.Info("Retrieving digests of member images")
 	for _, img := range input.Manifests {
 		ref, err := util.ParseName(img.Image)
 		if err != nil {
-			return hash, length, fmt.Errorf("Unable to parse image reference: %s: %v", img.Image, err)
+			return hash, length, fmt.Errorf("unable to parse image reference: %s: %v", img.Image, err)
 		}
 		if reference.Domain(targetRef) != reference.Domain(ref) {
-			return hash, length, fmt.Errorf("Source image (%s) registry does not match target image (%s) registry", ref, targetRef)
+			return hash, length, fmt.Errorf("source image (%s) registry does not match target image (%s) registry", ref, targetRef)
 		}
-		descriptor, err := FetchDescriptor(resolver, memoryStore, ref)
+		descriptor, err := FetchDescriptor(util.GetResolver(), memoryStore, ref)
 		if err != nil {
 			if ignoreMissing {
 				logrus.Warnf("Couldn't access image '%q'. Skipping due to 'ignore missing' configuration.", img.Image)
 				continue
 			}
-			return hash, length, fmt.Errorf("Inspect of image %q failed with error: %v", img.Image, err)
+			return hash, length, fmt.Errorf("inspect of image %q failed with error: %v", img.Image, err)
 		}
 
 		// Check that only member images of type OCI manifest or Docker v2.2 manifest are included
 		switch descriptor.MediaType {
 		case ocispec.MediaTypeImageIndex, types.MediaTypeDockerSchema2ManifestList:
-			return hash, length, fmt.Errorf("Cannot include an image in a manifest list/index which is already a multi-platform image: %s", img.Image)
+			// check if the index simply has a single image and that other index entries are attestation manifests
+			desc, attestDesc := getImagesFromIndex(descriptor, memoryStore)
+			var pushRef bool
+			if reference.Path(ref) != reference.Path(targetRef) {
+				pushRef = true
+			}
+			for _, d := range desc {
+				man := types.Manifest{
+					Descriptor: d,
+					PushRef:    pushRef,
+				}
+				manifestDescriptors = append(manifestDescriptors, man)
+			}
+			for _, d := range attestDesc {
+				man := types.Manifest{
+					Descriptor: d,
+					PushRef:    pushRef,
+				}
+				attestationDescriptors = append(attestationDescriptors, man)
+			}
 		case ocispec.MediaTypeImageManifest, types.MediaTypeDockerSchema2Manifest:
-			// valid image type to include
+			var (
+				man       ocispec.Manifest
+				imgConfig types.Image
+				pushRef   bool
+			)
+			// finalize the platform object that will be used to push with this manifest
+			_, db, _ := memoryStore.Get(descriptor)
+			if err := json.Unmarshal(db, &man); err != nil {
+				return hash, length, fmt.Errorf("could not unmarshal manifest object from descriptor for image '%s': %v", img.Image, err)
+			}
+			_, cb, _ := memoryStore.Get(man.Config)
+			if err := json.Unmarshal(cb, &imgConfig); err != nil {
+				return hash, length, fmt.Errorf("could not unmarshal config object from descriptor for image '%s': %v", img.Image, err)
+			}
+			descriptor.Platform, err = resolvePlatform(descriptor, img, imgConfig)
+			if err != nil {
+				return hash, length, fmt.Errorf("unable to create platform object for manifest %s: %v", descriptor.Digest.String(), err)
+			}
+			if reference.Path(ref) != reference.Path(targetRef) {
+				pushRef = true
+			}
+			manifestDescriptors = append(manifestDescriptors, types.Manifest{
+				Descriptor: descriptor,
+				PushRef:    pushRef,
+			})
 		default:
-			return hash, length, fmt.Errorf("Cannot include unknown media type '%s' in a manifest list/index push", descriptor.MediaType)
+			return hash, length, fmt.Errorf("cannot include unknown media type '%s' in a manifest list/index push", descriptor.MediaType)
 		}
-		_, db, _ := memoryStore.Get(descriptor)
+	}
+
+	platforms = make(map[string]ocispec.Descriptor)
+
+	// add image manifests to final index/manifestlist
+	for _, manifest := range manifestDescriptors {
+		// first make sure we haven't already encountered an image with this platform
+		platStr := getPlatformString(manifest.Descriptor.Platform)
+		if otherDesc, ok := platforms[platStr]; ok {
+			return hash, length, fmt.Errorf("cannot include two manifests with the same platform; digest %s already provides platform %s (this digest: %s)", otherDesc.Digest.String(),
+				platStr, manifest.Descriptor.Digest.String())
+		}
+		platforms[platStr] = manifest.Descriptor
+
 		var man ocispec.Manifest
+		_, db, _ := memoryStore.Get(manifest.Descriptor)
 		if err := json.Unmarshal(db, &man); err != nil {
-			return hash, length, fmt.Errorf("Could not unmarshal manifest object from descriptor for image '%s': %v", img.Image, err)
-		}
-		_, cb, _ := memoryStore.Get(man.Config)
-		var imgConfig types.Image
-		if err := json.Unmarshal(cb, &imgConfig); err != nil {
-			return hash, length, fmt.Errorf("Could not unmarshal config object from descriptor for image '%s': %v", img.Image, err)
+			return hash, length, fmt.Errorf("could not unmarshal manifest object from descriptor '%s': %v", manifest.Descriptor.Digest.String(), err)
 		}
 		// set labels for handling distribution source to get automatic cross-repo blob mounting for the layers
-		info, _ := memoryStore.Info(context.TODO(), descriptor.Digest)
+		info, _ := memoryStore.Info(context.TODO(), manifest.Descriptor.Digest)
 		for _, layer := range man.Layers {
 			// only need to handle cross-repo blob mount for distributable layer types
 			if skippable(layer.MediaType) {
@@ -81,23 +142,28 @@ func PushManifestList(username, password string, input types.YAMLInput, ignoreMi
 				logrus.Warnf("couldn't update in-memory store labels for %v: %v", info.Digest, err)
 			}
 		}
-
-		// finalize the platform object that will be used to push with this manifest
-		descriptor.Platform, err = resolvePlatform(descriptor, img, imgConfig)
-		if err != nil {
-			return hash, length, fmt.Errorf("Unable to create platform object for manifest %s: %v", descriptor.Digest.String(), err)
-		}
-		manifest := types.Manifest{
-			Descriptor: descriptor,
-			PushRef:    false,
-		}
-
-		if reference.Path(ref) != reference.Path(targetRef) {
-			// the target manifest list/index is located in a different repo; need to push
-			// the manifest as a digest to the target repo before the list/index is pushed
-			manifest.PushRef = true
-		}
 		manifestList.Manifests = append(manifestList.Manifests, manifest)
+	}
+
+	// add attestations to final index/manifestlist
+	for _, attestation := range attestationDescriptors {
+		_, db, _ := memoryStore.Get(attestation.Descriptor)
+		var man ocispec.Manifest
+		if err := json.Unmarshal(db, &man); err != nil {
+			return hash, length, fmt.Errorf("could not unmarshal attestation object from descriptor '%s': %v", attestation.Descriptor.Digest.String(), err)
+		}
+		info, _ := memoryStore.Info(context.TODO(), attestation.Descriptor.Digest)
+		for _, layer := range man.Layers {
+			// only need to handle cross-repo blob mount for distributable layer types
+			if skippable(layer.MediaType) {
+				continue
+			}
+			info.Digest = layer.Digest
+			if _, err := memoryStore.Update(context.TODO(), info, ""); err != nil {
+				logrus.Warnf("couldn't update in-memory store labels for %v: %v", info.Digest, err)
+			}
+		}
+		manifestList.Manifests = append(manifestList.Manifests, attestation)
 	}
 
 	if ignoreMissing && len(manifestList.Manifests) == 0 {
@@ -137,7 +203,7 @@ func resolvePlatform(descriptor ocispec.Descriptor, img types.ManifestEntry, img
 
 	// validate os/arch input
 	if !util.IsValidOSArch(platform.OS, platform.Architecture, platform.Variant) {
-		return nil, fmt.Errorf("Manifest entry for image %s has unsupported os/arch or os/arch/variant combination: %s/%s/%s", img.Image, platform.OS, platform.Architecture, platform.Variant)
+		return nil, fmt.Errorf("manifest entry for image %s has unsupported os/arch or os/arch/variant combination: %s/%s/%s", img.Image, platform.OS, platform.Architecture, platform.Variant)
 	}
 	return platform, nil
 }
@@ -153,4 +219,43 @@ func skippable(mediaType string) bool {
 		return true
 	}
 	return false
+}
+
+func isAttestationManifest(desc ocispec.Descriptor) bool {
+	if aRefType, ok := desc.Annotations["vnd.docker.reference.type"]; ok {
+		if aRefType == "attestation-manifest" {
+			return true
+		}
+	}
+	return false
+}
+
+func getImagesFromIndex(desc ocispec.Descriptor, ms *store.MemoryStore) ([]ocispec.Descriptor, []ocispec.Descriptor) {
+	var (
+		manifests    []ocispec.Descriptor
+		attestations []ocispec.Descriptor
+	)
+	_, db, _ := ms.Get(desc)
+	var index ocispec.Index
+	if err := json.Unmarshal(db, &index); err != nil {
+		logrus.Errorf("could not unmarshal index from descriptor '%s': %v", desc.Digest.String(), err)
+		return manifests, attestations
+	}
+	for _, man := range index.Manifests {
+		if isAttestationManifest(man) {
+			attestations = append(attestations, man)
+		} else {
+			manifests = append(manifests, man)
+		}
+	}
+	return manifests, attestations
+}
+
+func getPlatformString(platform *ocispec.Platform) string {
+	return fmt.Sprintf("%s-%s-%s-%s-%s",
+		platform.Architecture,
+		platform.OS,
+		platform.Variant,
+		platform.OSVersion,
+		strings.Join(platform.OSFeatures, "."))
 }

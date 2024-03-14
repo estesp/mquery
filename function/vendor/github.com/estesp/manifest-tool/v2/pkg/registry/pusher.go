@@ -49,7 +49,7 @@ func Push(m types.ManifestList, addedTags []string, ms *store.MemoryStore) (stri
 			// until containerd/containerd issue #5978 (https://github.com/containerd/containerd/issues/5978) is
 			// fixed, we can work around this by attempting the push again now that the auth 401 is handled for
 			// registries like GCR and Quay.io
-			logrus.Debugf("body re-use error; will retry: %+v", err)
+			logrus.Debugf("body reuse error; will retry: %+v", err)
 			err := push(m.Reference, desc, m.Resolver, ms)
 			if err != nil {
 				return "", 0, errors.Wrapf(err, "Error pushing manifest list/index to registry: %s", desc.Digest.String())
@@ -177,5 +177,6 @@ func dockerConvert(m ocispec.Descriptor) manifestlist.ManifestDescriptor {
 	md.Platform.Variant = m.Platform.Variant
 	md.Platform.OSFeatures = m.Platform.OSFeatures
 	md.Platform.OSVersion = m.Platform.OSVersion
+	md.Annotations = m.Annotations
 	return md
 }
