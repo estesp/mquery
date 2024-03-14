@@ -169,9 +169,11 @@ func queryRegistry(name string) (*Image, error) {
 	}
 
 	memoryStore := store.NewMemoryStore()
-	resolver := util.NewResolver("", "", false, false, "")
+	if err = util.CreateRegistryHost(imageRef, "", "", false, false, "", false); err != nil {
+		return nil, err
+	}
 
-	descriptor, err := registry.FetchDescriptor(resolver, memoryStore, imageRef)
+	descriptor, err := registry.FetchDescriptor(util.GetResolver(), memoryStore, imageRef)
 	if err != nil {
 		return nil, err
 	}
