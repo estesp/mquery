@@ -20,11 +20,11 @@ jobs:
 
     strategy:
       matrix:
-        go-version: [1.20.x]
+        go-version: [1.22.x]
         os: [ubuntu-22.04, macos-12, windows-2019]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: src/github.com/estesp/mquery
 
@@ -34,9 +34,9 @@ jobs:
           echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
           echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
 
-      - uses: golangci/golangci-lint-action@v3
+      - uses: golangci/golangci-lint-action@v4
         with:
-          version: v1.51.1
+          version: v1.56.1
           skip-cache: true
           working-directory: src/github.com/estesp/mquery
           args: --timeout=5m
@@ -50,15 +50,15 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: src/github.com/estesp/mquery
           fetch-depth: 100
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.20.x
+          go-version: 1.22.x
 
       - name: Set env
         shell: bash
@@ -67,9 +67,7 @@ jobs:
           echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        env:
-          GO111MODULE: off
-        run: go get -u github.com/vbatts/git-validation
+        run: go install github.com/vbatts/git-validation@latest
 
       - name: DCO
         env:
@@ -105,9 +103,9 @@ jobs:
         os: [ubuntu-22.04, macos-12, windows-2019]
 
     steps:
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: 1.20.x
+          go-version: 1.22.x
 
       - name: Set env
         shell: bash
@@ -115,7 +113,7 @@ jobs:
           echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
           echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: src/github.com/estesp/mquery
 
@@ -133,9 +131,9 @@ jobs:
     needs: [project, linters]
 
     steps:
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: 1.20.x
+          go-version: 1.22.x
 
       - name: Set env
         shell: bash
@@ -143,7 +141,7 @@ jobs:
           echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
           echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: src/github.com/estesp/mquery
 
