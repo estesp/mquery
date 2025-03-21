@@ -215,7 +215,10 @@ func generateImage(name string, cs *store.MemoryStore, desc ocispec.Descriptor, 
 	case ocispec.MediaTypeImageIndex, types.MediaTypeDockerSchema2ManifestList:
 		image.IsList = true
 		for _, img := range index.Manifests {
-			image.ArchList = append(image.ArchList, *img.Platform)
+			// skip outputting the "fake" attestation entries in the manifest list
+			if _, ok := img.Annotations["vnd.docker.reference.type"]; !ok {
+				image.ArchList = append(image.ArchList, *img.Platform)
+			}
 		}
 	default:
 		image.ArchList = []ocispec.Platform{{
